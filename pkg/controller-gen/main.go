@@ -97,18 +97,22 @@ func Run(opts cgargs.Options) {
 		logrus.Fatalf("go modules copy failed: %v", err)
 	}
 
+	// This is from gengo
 	if err := generateDeepcopy(deepCopygroups, customArgs); err != nil {
 		logrus.Fatalf("deepcopy failed: %v", err)
 	}
 
+	// This is from k8s.io/code-generator
 	if err := generateClientset(groups, customArgs); err != nil {
 		logrus.Fatalf("clientset failed: %v", err)
 	}
 
+	// This is from k8s.io/code-generator
 	if err := generateListers(listerGroups, customArgs); err != nil {
 		logrus.Fatalf("listers failed: %v", err)
 	}
 
+	// This is from k8s.io/code-generator
 	if err := generateInformers(informerGroups, customArgs); err != nil {
 		logrus.Fatalf("informers failed: %v", err)
 	}
