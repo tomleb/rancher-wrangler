@@ -1,41 +1,47 @@
-package generators
+package typego
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	args2 "github.com/rancher/wrangler/v2/pkg/controller-gen/args"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/util"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/gengo/args"
-	"k8s.io/gengo/generator"
-	"k8s.io/gengo/namer"
-	"k8s.io/gengo/types"
+	"k8s.io/gengo/v2/generator"
+	"k8s.io/gengo/v2/namer"
+	"k8s.io/gengo/v2/types"
 )
 
-func TypeGo(gv schema.GroupVersion, name *types.Name, args *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Generator {
+var (
+	pluralExceptions = map[string]string{
+		"Endpoints": "Endpoints",
+	}
+	plural = namer.NewPublicPluralNamer(pluralExceptions)
+)
+
+type Args struct{}
+
+func TypeGo(gv schema.GroupVersion, name *types.Name, args *Args) generator.Generator {
 	return &typeGo{
-		name:       name,
-		gv:         gv,
-		args:       args,
-		customArgs: customArgs,
-		DefaultGen: generator.DefaultGen{
-			OptionalName: strings.ToLower(name.Name),
+		name: name,
+		gv:   gv,
+		args: args,
+		GoGenerator: generator.GoGenerator{
+			OutputFilename: strings.ToLower(name.Name),
 		},
 	}
 }
 
 type typeGo struct {
-	generator.DefaultGen
+	generator.GoGenerator
 
-	name       *types.Name
-	gv         schema.GroupVersion
-	args       *args.GeneratorArgs
-	customArgs *args2.CustomArgs
+	name *types.Name
+	gv   schema.GroupVersion
+	args *Args
 }
 
 func (f *typeGo) Imports(context *generator.Context) []string {
-	packages := append(Imports,
+	packages := append(util.Imports,
 		fmt.Sprintf("%s \"%s\"", f.gv.Version, f.name.Package))
 
 	return packages
@@ -44,7 +50,7 @@ func (f *typeGo) Imports(context *generator.Context) []string {
 func (f *typeGo) Init(c *generator.Context, w io.Writer) error {
 	sw := generator.NewSnippetWriter(w, c, "{{", "}}")
 
-	if err := f.DefaultGen.Init(c, w); err != nil {
+	if err := f.GoGenerator.Init(c, w); err != nil {
 		return err
 	}
 
@@ -54,7 +60,7 @@ func (f *typeGo) Init(c *generator.Context, w io.Writer) error {
 		"lowerName":  namer.IL(f.name.Name),
 		"plural":     plural.Name(t),
 		"version":    f.gv.Version,
-		"namespaced": namespaced(t),
+		"namespaced": util.Namespaced(t),
 		"hasStatus":  hasStatus(t),
 		"statusType": statusType(t),
 	}

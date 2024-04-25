@@ -1,41 +1,42 @@
-package generators
+package groupversioninterfacego
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	args2 "github.com/rancher/wrangler/v2/pkg/controller-gen/args"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/util"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/gengo/args"
-	"k8s.io/gengo/generator"
-	"k8s.io/gengo/namer"
-	"k8s.io/gengo/types"
+	"k8s.io/gengo/v2/generator"
+	"k8s.io/gengo/v2/namer"
+	"k8s.io/gengo/v2/types"
 )
 
-func GroupVersionInterfaceGo(gv schema.GroupVersion, args *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Generator {
+type Args struct {
+	TypesByGroup map[schema.GroupVersion][]*types.Name
+}
+
+func GroupVersionInterfaceGo(gv schema.GroupVersion, args *Args) generator.Generator {
 	return &groupInterfaceGo{
-		gv:         gv,
-		args:       args,
-		customArgs: customArgs,
-		DefaultGen: generator.DefaultGen{
-			OptionalName: "interface",
+		gv:   gv,
+		args: args,
+		GoGenerator: generator.GoGenerator{
+			OutputFilename: "interface",
 		},
 	}
 }
 
 type groupInterfaceGo struct {
-	generator.DefaultGen
+	generator.GoGenerator
 
-	gv         schema.GroupVersion
-	args       *args.GeneratorArgs
-	customArgs *args2.CustomArgs
+	gv   schema.GroupVersion
+	args *Args
 }
 
 func (f *groupInterfaceGo) Imports(context *generator.Context) []string {
-	firstType := f.customArgs.TypesByGroup[f.gv][0]
+	firstType := f.args.TypesByGroup[f.gv][0]
 
-	packages := append(Imports,
+	packages := append(util.Imports,
 		fmt.Sprintf("%s \"%s\"", f.gv.Version, firstType.Package))
 
 	return packages
@@ -54,7 +55,7 @@ func (f *groupInterfaceGo) Init(c *generator.Context, w io.Writer) error {
 	orderer := namer.Orderer{Namer: namer.NewPrivateNamer(0)}
 
 	var types []*types.Type
-	for _, name := range f.customArgs.TypesByGroup[f.gv] {
+	for _, name := range f.args.TypesByGroup[f.gv] {
 		types = append(types, c.Universe.Type(*name))
 	}
 	types = orderer.OrderTypes(types)
@@ -75,7 +76,7 @@ func (f *groupInterfaceGo) Init(c *generator.Context, w io.Writer) error {
 	m := map[string]interface{}{
 		"version":      f.gv.Version,
 		"versionUpper": namer.IC(f.gv.Version),
-		"groupUpper":   upperLowercase(f.gv.Group),
+		"groupUpper":   util.UpperLowercase(f.gv.Group),
 	}
 	sw.Do(groupInterfaceBody, m)
 
@@ -86,9 +87,9 @@ func (f *groupInterfaceGo) Init(c *generator.Context, w io.Writer) error {
 			"pluralLower":  strings.ToLower(plural.Name(t)),
 			"version":      f.gv.Version,
 			"group":        f.gv.Group,
-			"namespaced":   namespaced(t),
+			"namespaced":   util.Namespaced(t),
 			"versionUpper": namer.IC(f.gv.Version),
-			"groupUpper":   upperLowercase(f.gv.Group),
+			"groupUpper":   util.UpperLowercase(f.gv.Group),
 		}
 		body := `
 		func (v *version) {{.type}}() {{.type}}Controller {
@@ -113,3 +114,31 @@ type version struct {
 }
 
 `
+
+func (f *groupInterfaceGo) FileType() string { return "" }
+
+func (f *groupInterfaceGo) Filename() string { return "" }
+
+func (f *groupInterfaceGo) Filter(ctx *generator.Context, t *types.Type) bool { return false }
+
+func (f *groupInterfaceGo) Finalize(ctx *generator.Context, ioWriter io.Writer) error { return nil }
+
+func (f *groupInterfaceGo) GenerateType(ctx *generator.Context, t *types.Type, ioWriter io.Writer) error {
+	return nil
+}
+
+func (f *groupInterfaceGo) Name() string {
+	return ""
+}
+
+func (f *groupInterfaceGo) Namers(ctx *generator.Context) namer.NameSystems {
+	return namer.NameSystems{}
+}
+
+func (f *groupInterfaceGo) PackageVars(ctx *generator.Context) []string {
+	return []string{}
+}
+
+func (f *groupInterfaceGo) PackageConsts(*generator.Context) []string {
+	return nil
+}

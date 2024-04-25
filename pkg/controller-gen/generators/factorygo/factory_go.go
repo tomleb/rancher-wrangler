@@ -1,38 +1,43 @@
-package generators
+package factorygo
 
 import (
 	"fmt"
 	"io"
 
-	args2 "github.com/rancher/wrangler/v2/pkg/controller-gen/args"
-	"k8s.io/gengo/args"
-	"k8s.io/gengo/generator"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/util"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/gengo/v2/generator"
+	"k8s.io/gengo/v2/namer"
+	"k8s.io/gengo/v2/types"
 )
 
-func FactoryGo(group string, args *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Generator {
+type Args struct {
+	TypesByGroup map[schema.GroupVersion][]*types.Name
+}
+
+func FactoryGo(group string, args *Args) generator.Generator {
 	return &factory{
-		group:      group,
-		args:       args,
-		customArgs: customArgs,
-		DefaultGen: generator.DefaultGen{
-			OptionalName: "factory",
-			OptionalBody: []byte(factoryBody),
+		group: group,
+		args:  args,
+		GoGenerator: generator.GoGenerator{
+			OutputFilename: "factory",
+			OptionalBody:   []byte(factoryBody),
 		},
 	}
 }
 
 type factory struct {
-	generator.DefaultGen
+	generator.GoGenerator
 
-	group      string
-	args       *args.GeneratorArgs
-	customArgs *args2.CustomArgs
+	group string
+	args  *Args
 }
 
 func (f *factory) Imports(*generator.Context) []string {
-	imports := Imports
+	imports := util.Imports
 
-	for gv, types := range f.customArgs.TypesByGroup {
+	for gv, types := range f.args.TypesByGroup {
 		if f.group == gv.Group && len(types) > 0 {
 			imports = append(imports,
 				fmt.Sprintf("%s \"%s\"", gv.Version, types[0].Package))
@@ -43,13 +48,13 @@ func (f *factory) Imports(*generator.Context) []string {
 }
 
 func (f *factory) Init(c *generator.Context, w io.Writer) error {
-	if err := f.DefaultGen.Init(c, w); err != nil {
+	if err := f.GoGenerator.Init(c, w); err != nil {
 		return err
 	}
 
 	sw := generator.NewSnippetWriter(w, c, "{{", "}}")
 	m := map[string]interface{}{
-		"groupName": upperLowercase(f.group),
+		"groupName": util.UpperLowercase(f.group),
 	}
 
 	sw.Do("\n\nfunc (c *Factory) {{.groupName}}() Interface {\n", m)
@@ -104,3 +109,33 @@ func NewFactoryFromConfigWithOptionsOrDie(config *rest.Config, opts *FactoryOpti
 }
 
 `
+
+func (f *factory) FileType() string { return "" }
+
+func (f *factory) Filename() string { return "" }
+
+func (f *factory) Filter(ctx *generator.Context, t *types.Type) bool { return false }
+
+func (f *factory) Finalize(ctx *generator.Context, ioWriter io.Writer) error { return nil }
+
+func (f *factory) GenerateType(ctx *generator.Context, t *types.Type, ioWriter io.Writer) error {
+	return nil
+}
+
+func (f *factory) Name() string {
+	return ""
+}
+
+func (f *factory) Namers(ctx *generator.Context) namer.NameSystems {
+	return namer.NameSystems{}
+}
+
+func (f *factory) PackageVars(ctx *generator.Context) []string {
+	return []string{}
+}
+
+func (f *factory) PackageConsts(*generator.Context) []string {
+	return []string{
+		fmt.Sprintf("GroupName = \"%s\"", f.group),
+	}
+}

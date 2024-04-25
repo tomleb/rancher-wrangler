@@ -1,11 +1,13 @@
-package generators
+package util
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	"k8s.io/code-generator/cmd/client-gen/generators/util"
-	"k8s.io/gengo/namer"
-	"k8s.io/gengo/types"
+	"k8s.io/gengo/v2/namer"
+	"k8s.io/gengo/v2/types"
 )
 
 var (
@@ -31,7 +33,7 @@ var (
 	}
 )
 
-func namespaced(t *types.Type) bool {
+func Namespaced(t *types.Type) bool {
 	if util.MustParseClientGenTags(t.SecondClosestCommentLines).NonNamespaced {
 		return false
 	}
@@ -49,12 +51,12 @@ func namespaced(t *types.Type) bool {
 	return !kubeBuilder
 }
 
-func groupPath(group string) string {
+func GroupPath(group string) string {
 	g := strings.Replace(strings.Split(group, ".")[0], "-", "", -1)
-	return groupPackageName(g, "")
+	return GroupPackageName(g, "")
 }
 
-func groupPackageName(group, groupPackageName string) string {
+func GroupPackageName(group, groupPackageName string) string {
 	if groupPackageName != "" {
 		return groupPackageName
 	}
@@ -64,6 +66,14 @@ func groupPackageName(group, groupPackageName string) string {
 	return group
 }
 
-func upperLowercase(name string) string {
-	return namer.IC(strings.ToLower(groupPath(name)))
+func UpperLowercase(name string) string {
+	return namer.IC(strings.ToLower(GroupPath(name)))
+}
+
+func DefaultSourceTree() string {
+	paths := strings.Split(os.Getenv("GOPATH"), string(filepath.ListSeparator))
+	if len(paths) > 0 && len(paths[0]) > 0 {
+		return filepath.Join(paths[0], "src")
+	}
+	return "./"
 }

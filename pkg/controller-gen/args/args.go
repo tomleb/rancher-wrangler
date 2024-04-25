@@ -2,7 +2,7 @@ package args
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/gengo/types"
+	"k8s.io/gengo/v2/types"
 )
 
 type CustomArgs struct {

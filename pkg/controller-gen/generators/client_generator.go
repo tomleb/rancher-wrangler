@@ -22,79 +22,106 @@ import (
 	"strings"
 
 	args2 "github.com/rancher/wrangler/v2/pkg/controller-gen/args"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/factorygo"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/groupinterfacego"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/groupversioninterfacego"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/listtypego"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/registergroupgo"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/registergroupversiongo"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/typego"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/util"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/gengo/args"
-	"k8s.io/gengo/generator"
-	"k8s.io/gengo/types"
+	"k8s.io/gengo/v2/generator"
+	"k8s.io/gengo/v2/types"
 )
+
+type Args struct {
+	GoHeaderFilePath  string
+	Options           args2.Options
+	TypesByGroup      map[schema.GroupVersion][]*types.Name
+	Package           string
+	ImportPackage     string
+	InputDirs         []string
+	OutputBase        string
+	OutputPackagePath string
+
+	FactoryGoArgs   *factorygo.Args
+	GroupInfArgs    *groupinterfacego.Args
+	GroupVerInfArgs *groupversioninterfacego.Args
+	ListTypesArgs   *listtypego.Args
+	RegGroupArgs    *registergroupgo.Args
+	RegGroupVerArgs *registergroupversiongo.Args
+	TypeGoArgs      *typego.Args
+}
 
 type ClientGenerator struct {
 	Fakes map[string][]string
+	Args  *Args
 }
 
-func NewClientGenerator() *ClientGenerator {
+func NewClientGenerator(args *Args) *ClientGenerator {
 	return &ClientGenerator{
 		Fakes: make(map[string][]string),
+		Args:  args,
 	}
 }
 
 // Packages makes the client package definition.
-func (cg *ClientGenerator) Packages(context *generator.Context, arguments *args.GeneratorArgs) generator.Packages {
-	customArgs := arguments.CustomArgs.(*args2.CustomArgs)
+func (cg *ClientGenerator) GetTargets(context *generator.Context) []generator.Target {
 	generateTypesGroups := map[string]bool{}
 
-	for groupName, group := range customArgs.Options.Groups {
+	for groupName, group := range cg.Args.Options.Groups {
 		if group.GenerateTypes {
 			generateTypesGroups[groupName] = true
 		}
 	}
 
 	var (
-		packageList []generator.Package
+		packageList []generator.Target
 		groups      = map[string]bool{}
 	)
 
-	for gv, types := range customArgs.TypesByGroup {
+	for gv, types := range cg.Args.TypesByGroup {
 		if !groups[gv.Group] {
-			packageList = append(packageList, cg.groupPackage(gv.Group, arguments, customArgs))
+			packageList = append(packageList, cg.groupPackage(gv.Group))
 			if generateTypesGroups[gv.Group] {
-				packageList = append(packageList, cg.typesGroupPackage(types[0], gv, arguments, customArgs))
+				packageList = append(packageList, cg.typesGroupPackage(types[0], gv))
 			}
 		}
 		groups[gv.Group] = true
-		packageList = append(packageList, cg.groupVersionPackage(gv, arguments, customArgs))
+		packageList = append(packageList, cg.groupVersionPackage(gv))
 
 		if generateTypesGroups[gv.Group] {
-			packageList = append(packageList, cg.typesGroupVersionPackage(types[0], gv, arguments, customArgs))
-			packageList = append(packageList, cg.typesGroupVersionDocPackage(types[0], gv, arguments, customArgs))
+			packageList = append(packageList, cg.typesGroupVersionPackage(types[0], gv))
+			packageList = append(packageList, cg.typesGroupVersionDocPackage(types[0], gv))
 		}
 	}
 
 	return packageList
 }
 
-func (cg *ClientGenerator) typesGroupPackage(name *types.Name, gv schema.GroupVersion, generatorArgs *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Package {
+func (cg *ClientGenerator) typesGroupPackage(name *types.Name, gv schema.GroupVersion) generator.Target {
 	packagePath := strings.TrimSuffix(name.Package, "/"+gv.Version)
-	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
+	return Target(cg.Args.GoHeaderFilePath, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
-			RegisterGroupGo(gv.Group, generatorArgs, customArgs),
+			registergroupgo.RegisterGroupGo(gv.Group, cg.Args.RegGroupArgs),
 		}
 	})
 }
 
-func (cg *ClientGenerator) typesGroupVersionDocPackage(name *types.Name, gv schema.GroupVersion, generatorArgs *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Package {
+func (cg *ClientGenerator) typesGroupVersionDocPackage(name *types.Name, gv schema.GroupVersion) generator.Target {
 	packagePath := name.Package
-	p := Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
+	p := Target(cg.Args.GoHeaderFilePath, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
-			generator.DefaultGen{
-				OptionalName: "doc",
+			generator.GoGenerator{
+				OutputFilename: "doc",
 			},
-			RegisterGroupVersionGo(gv, generatorArgs, customArgs),
-			ListTypesGo(gv, generatorArgs, customArgs),
+			registergroupversiongo.RegisterGroupVersionGo(gv, cg.Args.RegGroupVerArgs),
+			listtypego.ListTypesGo(gv, cg.Args.ListTypesArgs),
 		}
 	})
 
-	p.(*generator.DefaultPackage).HeaderText = append(p.(*generator.DefaultPackage).HeaderText, []byte(fmt.Sprintf(`
+	p.(*generator.SimpleTarget).HeaderComment = append(p.(*generator.SimpleTarget).HeaderComment, []byte(fmt.Sprintf(`
 
 // +k8s:deepcopy-gen=package
 // +groupName=%s
@@ -103,36 +130,37 @@ func (cg *ClientGenerator) typesGroupVersionDocPackage(name *types.Name, gv sche
 	return p
 }
 
-func (cg *ClientGenerator) typesGroupVersionPackage(name *types.Name, gv schema.GroupVersion, generatorArgs *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Package {
+func (cg *ClientGenerator) typesGroupVersionPackage(name *types.Name, gv schema.GroupVersion) generator.Target {
 	packagePath := name.Package
-	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
+	return Target(cg.Args.GoHeaderFilePath, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
-			RegisterGroupVersionGo(gv, generatorArgs, customArgs),
-			ListTypesGo(gv, generatorArgs, customArgs),
+			registergroupversiongo.RegisterGroupVersionGo(gv, cg.Args.RegGroupVerArgs),
+			listtypego.ListTypesGo(gv, cg.Args.ListTypesArgs),
 		}
 	})
 }
 
-func (cg *ClientGenerator) groupPackage(group string, generatorArgs *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Package {
-	packagePath := filepath.Join(customArgs.Package, "controllers", groupPackageName(group, customArgs.Options.Groups[group].OutputControllerPackageName))
-	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
+func (cg *ClientGenerator) groupPackage(group string) generator.Target {
+	packagePath := filepath.Join(cg.Args.Package, "controllers", util.GroupPackageName(group, cg.Args.Options.Groups[group].OutputControllerPackageName))
+
+	return Target(cg.Args.GoHeaderFilePath, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
-			FactoryGo(group, generatorArgs, customArgs),
-			GroupInterfaceGo(group, generatorArgs, customArgs),
+			factorygo.FactoryGo(group, cg.Args.FactoryGoArgs),
+			groupinterfacego.GroupInterfaceGo(group, cg.Args.GroupInfArgs),
 		}
 	})
 }
 
-func (cg *ClientGenerator) groupVersionPackage(gv schema.GroupVersion, generatorArgs *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Package {
-	packagePath := filepath.Join(customArgs.Package, "controllers", groupPackageName(gv.Group, customArgs.Options.Groups[gv.Group].OutputControllerPackageName), gv.Version)
+func (cg *ClientGenerator) groupVersionPackage(gv schema.GroupVersion) generator.Target {
+	packagePath := filepath.Join(cg.Args.Package, "controllers", util.GroupPackageName(gv.Group, cg.Args.Options.Groups[gv.Group].OutputControllerPackageName), gv.Version)
 
-	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
+	return Target(cg.Args.GoHeaderFilePath, packagePath, func(context *generator.Context) []generator.Generator {
 		generators := []generator.Generator{
-			GroupVersionInterfaceGo(gv, generatorArgs, customArgs),
+			groupversioninterfacego.GroupVersionInterfaceGo(gv, cg.Args.GroupVerInfArgs),
 		}
 
-		for _, t := range customArgs.TypesByGroup[gv] {
-			generators = append(generators, TypeGo(gv, t, generatorArgs, customArgs))
+		for _, t := range cg.Args.TypesByGroup[gv] {
+			generators = append(generators, typego.TypeGo(gv, t, cg.Args.TypeGoArgs))
 			cg.Fakes[packagePath] = append(cg.Fakes[packagePath], t.Name)
 		}
 

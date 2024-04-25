@@ -8,10 +8,17 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/gengo/generator"
+	"k8s.io/gengo/v2"
+	"k8s.io/gengo/v2/generator"
 
 	cgargs "github.com/rancher/wrangler/v2/pkg/controller-gen/args"
 	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/factorygo"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/groupinterfacego"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/groupversioninterfacego"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/listtypego"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/registergroupversiongo"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/util"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	csargs "k8s.io/code-generator/cmd/client-gen/args"
@@ -19,45 +26,85 @@ import (
 	cs "k8s.io/code-generator/cmd/client-gen/generators"
 	types2 "k8s.io/code-generator/cmd/client-gen/types"
 	dpargs "k8s.io/code-generator/cmd/deepcopy-gen/args"
+	dp "k8s.io/code-generator/cmd/deepcopy-gen/generators"
 	infargs "k8s.io/code-generator/cmd/informer-gen/args"
 	inf "k8s.io/code-generator/cmd/informer-gen/generators"
 	lsargs "k8s.io/code-generator/cmd/lister-gen/args"
 	ls "k8s.io/code-generator/cmd/lister-gen/generators"
-	"k8s.io/gengo/args"
-	dp "k8s.io/gengo/examples/deepcopy-gen/generators"
-	"k8s.io/gengo/types"
+
+	"k8s.io/gengo/v2/types"
 )
 
 func Run(opts cgargs.Options) {
-	customArgs := &cgargs.CustomArgs{
-		ImportPackage: opts.ImportPackage,
-		Options:       opts,
-		TypesByGroup:  map[schema.GroupVersion][]*types.Name{},
-		Package:       opts.OutputPackage,
+	args := &generators.Args{
+		ImportPackage:    opts.ImportPackage,
+		Options:          opts,
+		TypesByGroup:     map[schema.GroupVersion][]*types.Name{},
+		Package:          opts.OutputPackage,
+		GoHeaderFilePath: opts.Boilerplate,
+		OutputBase:       util.DefaultSourceTree(),
 	}
-	genericArgs := args.Default().WithoutDefaultFlagParsing()
-	genericArgs.CustomArgs = customArgs
-	genericArgs.GoHeaderFilePath = opts.Boilerplate
-	genericArgs.InputDirs = parseTypes(customArgs)
+	args.InputDirs = parseTypes(opts.Groups, args.TypesByGroup)
 
-	if genericArgs.OutputBase == "./" { //go modules
+	args.FactoryGoArgs = &factorygo.Args{
+		TypesByGroup: args.TypesByGroup,
+	}
+	args.GroupInfArgs = &groupinterfacego.Args{
+		Options:       args.Options,
+		Package:       args.Package,
+		ImportPackage: args.ImportPackage,
+		TypesByGroup:  args.TypesByGroup,
+	}
+	args.GroupVerInfArgs = &groupversioninterfacego.Args{
+		TypesByGroup: args.TypesByGroup,
+	}
+	args.ListTypesArgs = &listtypego.Args{
+		TypesByGroup: args.TypesByGroup,
+	}
+
+	args.RegGroupVerArgs = &registergroupversiongo.Args{
+		TypesByGroup: args.TypesByGroup,
+	}
+
+	if args.OutputBase == "./" { //go modules
 		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			return
 		}
 
-		genericArgs.OutputBase = tempDir
+		args.OutputBase = tempDir
 		defer os.RemoveAll(tempDir)
 	}
-	customArgs.OutputBase = genericArgs.OutputBase
 
-	clientGen := generators.NewClientGenerator()
+	/*new code ^ ^ */
+	// customArgs := &cgargs.CustomArgs{
+	// 	ImportPackage: opts.ImportPackage,
+	// 	Options:       opts,
+	// 	TypesByGroup:  map[schema.GroupVersion][]*types.Name{},
+	// 	Package:       opts.OutputPackage,
+	// }
+	// genericArgs := args.Default().WithoutDefaultFlagParsing()
+	// genericArgs.CustomArgs = customArgs
+	// genericArgs.GoHeaderFilePath = opts.Boilerplate
+	// genericArgs.InputDirs = parseTypes(customArgs)
 
-	if err := genericArgs.Execute(
+	// if genericArgs.OutputBase == "./" { //go modules
+	// 	tempDir, err := os.MkdirTemp("", "")
+	// 	if err != nil {
+	// 		return
+	// 	}
+
+	// 	genericArgs.OutputBase = tempDir
+	// 	defer os.RemoveAll(tempDir)
+	// }
+	// customArgs.OutputBase = genericArgs.OutputBase
+
+	clientGen := generators.NewClientGenerator(args)
+
+	if err := gengo.Execute(
 		clientgenerators.NameSystems(nil),
 		clientgenerators.DefaultNameSystem(),
-		clientGen.Packages,
-	); err != nil {
+		clientGen.GetTargets, "", nil); err != nil {
 		logrus.Fatalf("Error: %v", err)
 	}
 
@@ -65,7 +112,7 @@ func Run(opts cgargs.Options) {
 	listerGroups := map[string]bool{}
 	informerGroups := map[string]bool{}
 	deepCopygroups := map[string]bool{}
-	for groupName, group := range customArgs.Options.Groups {
+	for groupName, group := range args.Options.Groups {
 		if group.GenerateTypes {
 			deepCopygroups[groupName] = true
 		}
@@ -81,45 +128,45 @@ func Run(opts cgargs.Options) {
 	}
 
 	if len(deepCopygroups) == 0 && len(groups) == 0 && len(listerGroups) == 0 && len(informerGroups) == 0 {
-		if err := copyGoPathToModules(customArgs); err != nil {
+		if err := copyGoPathToModules(args); err != nil {
 			logrus.Fatalf("go modules copy failed: %v", err)
 		}
 		return
 	}
 
-	if err := copyGoPathToModules(customArgs); err != nil {
+	if err := copyGoPathToModules(args); err != nil {
 		logrus.Fatalf("go modules copy failed: %v", err)
 	}
 
-	if err := generateDeepcopy(deepCopygroups, customArgs); err != nil {
+	if err := generateDeepcopy(deepCopygroups, args); err != nil {
 		logrus.Fatalf("deepcopy failed: %v", err)
 	}
 
-	if err := generateClientset(groups, customArgs); err != nil {
+	if err := generateClientset(groups, args); err != nil {
 		logrus.Fatalf("clientset failed: %v", err)
 	}
 
-	if err := generateListers(listerGroups, customArgs); err != nil {
+	if err := generateListers(listerGroups, args); err != nil {
 		logrus.Fatalf("listers failed: %v", err)
 	}
 
-	if err := generateInformers(informerGroups, customArgs); err != nil {
+	if err := generateInformers(informerGroups, args); err != nil {
 		logrus.Fatalf("informers failed: %v", err)
 	}
 
-	if err := copyGoPathToModules(customArgs); err != nil {
+	if err := copyGoPathToModules(args); err != nil {
 		logrus.Fatalf("go modules copy failed: %v", err)
 	}
 }
 
-func sourcePackagePath(customArgs *cgargs.CustomArgs, pkgName string) string {
+func sourcePackagePath(customArgs *generators.Args, pkgName string) string {
 	pkgSplit := strings.Split(pkgName, string(os.PathSeparator))
 	pkg := filepath.Join(customArgs.OutputBase, strings.Join(pkgSplit[:3], string(os.PathSeparator)))
 	return pkg
 }
 
 // until k8s code-gen supports gopath
-func copyGoPathToModules(customArgs *cgargs.CustomArgs) error {
+func copyGoPathToModules(customArgs *generators.Args) error {
 
 	pathsToCopy := map[string]bool{}
 	for _, types := range customArgs.TypesByGroup {
@@ -175,46 +222,41 @@ func copyFile(src, dst string) error {
 	return os.Chmod(dst, srcinfo.Mode())
 }
 
-func generateDeepcopy(groups map[string]bool, customArgs *cgargs.CustomArgs) error {
+func generateDeepcopy(groups map[string]bool, args *generators.Args) error {
 	if len(groups) == 0 {
 		return nil
 	}
 
-	deepCopyCustomArgs := &dpargs.CustomArgs{}
+	deepCopyCustomArgs := &dpargs.Args{}
+	args.OutputBase = "zz_generated_deepcopy"
 
-	args := args.Default().WithoutDefaultFlagParsing()
-	args.CustomArgs = deepCopyCustomArgs
-	args.OutputBase = customArgs.OutputBase
-	args.OutputFileBaseName = "zz_generated_deepcopy"
-	args.GoHeaderFilePath = customArgs.Options.Boilerplate
-
-	for gv, names := range customArgs.TypesByGroup {
+	for gv, names := range args.TypesByGroup {
 		if !groups[gv.Group] {
 			continue
 		}
 		args.InputDirs = append(args.InputDirs, names[0].Package)
 		deepCopyCustomArgs.BoundingDirs = append(deepCopyCustomArgs.BoundingDirs, names[0].Package)
 	}
-
-	return args.Execute(dp.NameSystems(),
+	targets := setGenClient(groups, args.TypesByGroup, dp.GetTargets)
+	return gengo.Execute(dp.NameSystems(),
 		dp.DefaultNameSystem(),
-		dp.Packages)
+		func(ctx *generator.Context) []generator.Target {
+			return setGenClient(groups, args.TypesByGroup, dp.GetTargets)(ctx, args)
+		}, gengo.StdBuildTag, nil)
 }
 
-func generateClientset(groups map[string]bool, customArgs *cgargs.CustomArgs) error {
+func generateClientset(groups map[string]bool, args *generators.Args) error {
 	if len(groups) == 0 {
 		return nil
 	}
 
-	args, clientSetArgs := csargs.NewDefaults()
+	clientSetArgs := csargs.New()
 	clientSetArgs.ClientsetName = "versioned"
-	args.OutputBase = customArgs.OutputBase
-	args.OutputPackagePath = filepath.Join(customArgs.Package, "clientset")
-	args.GoHeaderFilePath = customArgs.Options.Boilerplate
+	args.OutputPackagePath = filepath.Join(args.Package, "clientset")
 
 	var order []schema.GroupVersion
 
-	for gv := range customArgs.TypesByGroup {
+	for gv := range args.TypesByGroup {
 		if !groups[gv.Group] {
 			continue
 		}
@@ -225,11 +267,11 @@ func generateClientset(groups map[string]bool, customArgs *cgargs.CustomArgs) er
 	})
 
 	for _, gv := range order {
-		packageName := customArgs.Options.Groups[gv.Group].PackageName
+		packageName := args.Options.Groups[gv.Group].PackageName
 		if packageName == "" {
 			packageName = gv.Group
 		}
-		names := customArgs.TypesByGroup[gv]
+		names := args.TypesByGroup[gv]
 		args.InputDirs = append(args.InputDirs, names[0].Package)
 		clientSetArgs.Groups = append(clientSetArgs.Groups, types2.GroupVersions{
 			PackageName: packageName,
@@ -242,14 +284,15 @@ func generateClientset(groups map[string]bool, customArgs *cgargs.CustomArgs) er
 			},
 		})
 	}
-
-	return args.Execute(cs.NameSystems(nil),
+	return gengo.Execute(cs.NameSystems(nil),
 		cs.DefaultNameSystem(),
-		setGenClient(groups, customArgs.TypesByGroup, cs.Packages))
+		func(ctx *generator.Context) []generator.Target {
+			return setGenClient(groups, args.TypesByGroup, cs.GetTargets)(ctx, args)
+		}, gengo.StdBuildTag, nil)
 }
 
-func setGenClient(groups map[string]bool, typesByGroup map[schema.GroupVersion][]*types.Name, f func(*generator.Context, *args.GeneratorArgs) generator.Packages) func(*generator.Context, *args.GeneratorArgs) generator.Packages {
-	return func(context *generator.Context, generatorArgs *args.GeneratorArgs) generator.Packages {
+func setGenClient(groups map[string]bool, typesByGroup map[schema.GroupVersion][]*types.Name, f func(*generator.Context, *csargs.Args) []generator.Target) func(*generator.Context, *csargs.Args) []generator.Target {
+	return func(context *generator.Context, generatorArgs *csargs.Args) []generator.Target {
 		for gv, names := range typesByGroup {
 			if !groups[gv.Group] {
 				continue
@@ -303,7 +346,7 @@ func setGenClient(groups map[string]bool, typesByGroup map[schema.GroupVersion][
 	}
 }
 
-func generateInformers(groups map[string]bool, customArgs *cgargs.CustomArgs) error {
+func generateInformers(groups map[string]bool, args *generators.Args) error {
 	if len(groups) == 0 {
 		return nil
 	}
@@ -322,12 +365,12 @@ func generateInformers(groups map[string]bool, customArgs *cgargs.CustomArgs) er
 		args.InputDirs = append(args.InputDirs, names[0].Package)
 	}
 
-	return args.Execute(inf.NameSystems(nil),
+	return gengo.Execute(inf.NameSystems(nil),
 		inf.DefaultNameSystem(),
 		setGenClient(groups, customArgs.TypesByGroup, inf.Packages))
 }
 
-func generateListers(groups map[string]bool, customArgs *cgargs.CustomArgs) error {
+func generateListers(groups map[string]bool, args *generators.Args) error {
 	if len(groups) == 0 {
 		return nil
 	}
@@ -349,22 +392,22 @@ func generateListers(groups map[string]bool, customArgs *cgargs.CustomArgs) erro
 		setGenClient(groups, customArgs.TypesByGroup, ls.Packages))
 }
 
-func parseTypes(customArgs *cgargs.CustomArgs) []string {
-	for groupName, group := range customArgs.Options.Groups {
+func parseTypes(groups map[string]cgargs.Group, typesByGroup map[schema.GroupVersion][]*types.Name) []string {
+	for groupName, group := range groups {
 		if group.GenerateTypes || group.GenerateClients {
-			customArgs.Options.Groups[groupName] = group
+			groups[groupName] = group
 		}
 	}
 
-	for groupName, group := range customArgs.Options.Groups {
-		if err := cgargs.ObjectsToGroupVersion(groupName, group.Types, customArgs.TypesByGroup); err != nil {
+	for groupName, group := range groups {
+		if err := cgargs.ObjectsToGroupVersion(groupName, group.Types, typesByGroup); err != nil {
 			// sorry, should really handle this better
 			panic(err)
 		}
 	}
 
 	var inputDirs []string
-	for _, names := range customArgs.TypesByGroup {
+	for _, names := range typesByGroup {
 		inputDirs = append(inputDirs, names[0].Package)
 	}
 

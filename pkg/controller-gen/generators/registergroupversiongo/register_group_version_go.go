@@ -1,44 +1,45 @@
-package generators
+package registergroupversiongo
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	args2 "github.com/rancher/wrangler/v2/pkg/controller-gen/args"
+	"github.com/rancher/wrangler/v2/pkg/controller-gen/generators/util"
 	"github.com/rancher/wrangler/v2/pkg/name"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/gengo/args"
-	"k8s.io/gengo/generator"
-	"k8s.io/gengo/namer"
-	"k8s.io/gengo/types"
+	"k8s.io/gengo/v2/generator"
+	"k8s.io/gengo/v2/namer"
+	"k8s.io/gengo/v2/types"
 )
 
-func RegisterGroupVersionGo(gv schema.GroupVersion, args *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Generator {
+type Args struct {
+	TypesByGroup map[schema.GroupVersion][]*types.Name
+}
+
+func RegisterGroupVersionGo(gv schema.GroupVersion, args *Args) generator.Generator {
 	return &registerGroupVersionGo{
-		gv:         gv,
-		args:       args,
-		customArgs: customArgs,
-		DefaultGen: generator.DefaultGen{
-			OptionalName: "zz_generated_register",
+		gv:   gv,
+		args: args,
+		GoGenerator: generator.GoGenerator{
+			OutputFilename: "zz_generated_register",
 		},
 	}
 }
 
 type registerGroupVersionGo struct {
-	generator.DefaultGen
+	generator.GoGenerator
 
-	gv         schema.GroupVersion
-	args       *args.GeneratorArgs
-	customArgs *args2.CustomArgs
+	gv   schema.GroupVersion
+	args *Args
 }
 
 func (f *registerGroupVersionGo) Imports(*generator.Context) []string {
-	firstType := f.customArgs.TypesByGroup[f.gv][0]
+	firstType := f.args.TypesByGroup[f.gv][0]
 	typeGroupPath := strings.TrimSuffix(firstType.Package, "/"+f.gv.Version)
 
-	packages := append(Imports,
-		fmt.Sprintf("%s \"%s\"", groupPath(f.gv.Group), typeGroupPath))
+	packages := append(util.Imports,
+		fmt.Sprintf("%s \"%s\"", util.GroupPath(f.gv.Group), typeGroupPath))
 
 	return packages
 }
@@ -50,14 +51,14 @@ func (f *registerGroupVersionGo) Init(c *generator.Context, w io.Writer) error {
 		sw      = generator.NewSnippetWriter(w, c, "{{", "}}")
 	)
 
-	for _, name := range f.customArgs.TypesByGroup[f.gv] {
+	for _, name := range f.args.TypesByGroup[f.gv] {
 		types = append(types, c.Universe.Type(*name))
 	}
 	types = orderer.OrderTypes(types)
 
 	m := map[string]interface{}{
 		"version":   f.gv.Version,
-		"groupPath": groupPath(f.gv.Group),
+		"groupPath": util.GroupPath(f.gv.Group),
 	}
 
 	sw.Do("var (\n", nil)
@@ -117,3 +118,33 @@ var registerGroupVersionBodyEnd = `
 	return nil
 }
 `
+
+func (f *registerGroupVersionGo) FileType() string { return "" }
+
+func (f *registerGroupVersionGo) Filename() string { return "" }
+
+func (f *registerGroupVersionGo) Filter(ctx *generator.Context, t *types.Type) bool { return false }
+
+func (f *registerGroupVersionGo) Finalize(ctx *generator.Context, ioWriter io.Writer) error {
+	return nil
+}
+
+func (f *registerGroupVersionGo) GenerateType(ctx *generator.Context, t *types.Type, ioWriter io.Writer) error {
+	return nil
+}
+
+func (f *registerGroupVersionGo) Name() string {
+	return ""
+}
+
+func (f *registerGroupVersionGo) Namers(ctx *generator.Context) namer.NameSystems {
+	return namer.NameSystems{}
+}
+
+func (f *registerGroupVersionGo) PackageVars(ctx *generator.Context) []string {
+	return []string{}
+}
+
+func (f *registerGroupVersionGo) PackageConsts(*generator.Context) []string {
+	return nil
+}
