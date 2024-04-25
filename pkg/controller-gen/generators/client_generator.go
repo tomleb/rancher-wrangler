@@ -77,6 +77,7 @@ func (cg *ClientGenerator) typesGroupPackage(name *types.Name, gv schema.GroupVe
 	packagePath := strings.TrimSuffix(name.Package, "/"+gv.Version)
 	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
+			// Generates pkg/apis/foo.cattle.io/zz_generated_register.go
 			RegisterGroupGo(gv.Group, generatorArgs, customArgs),
 		}
 	})
@@ -86,10 +87,13 @@ func (cg *ClientGenerator) typesGroupVersionDocPackage(name *types.Name, gv sche
 	packagePath := name.Package
 	p := Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
+			// Generates pkg/apis/foo.cattle.io/v3/doc.go
 			generator.DefaultGen{
 				OptionalName: "doc",
 			},
+			// Generates pkg/apis/foo.cattle.io/v3/zz_generated_register.go
 			RegisterGroupVersionGo(gv, generatorArgs, customArgs),
+			// Generates pkg/apis/foo.cattle.io/v3/zz_generated_list_types.go
 			ListTypesGo(gv, generatorArgs, customArgs),
 		}
 	})
@@ -103,11 +107,14 @@ func (cg *ClientGenerator) typesGroupVersionDocPackage(name *types.Name, gv sche
 	return p
 }
 
+// This seems like a duplicate from the one above
 func (cg *ClientGenerator) typesGroupVersionPackage(name *types.Name, gv schema.GroupVersion, generatorArgs *args.GeneratorArgs, customArgs *args2.CustomArgs) generator.Package {
 	packagePath := name.Package
 	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
+			// Generates pkg/apis/foo.cattle.io/v3/zz_generated_register.go
 			RegisterGroupVersionGo(gv, generatorArgs, customArgs),
+			// Generates pkg/apis/foo.cattle.io/v3/zz_generated_list_types.go
 			ListTypesGo(gv, generatorArgs, customArgs),
 		}
 	})
@@ -117,7 +124,9 @@ func (cg *ClientGenerator) groupPackage(group string, generatorArgs *args.Genera
 	packagePath := filepath.Join(customArgs.Package, "controllers", groupPackageName(group, customArgs.Options.Groups[group].OutputControllerPackageName))
 	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
 		return []generator.Generator{
+			// Generates pkg/generated/controllers/cluster.cattle.io/factory.go
 			FactoryGo(group, generatorArgs, customArgs),
+			// Generates pkg/generated/controllers/cluster.cattle.io/interface.go
 			GroupInterfaceGo(group, generatorArgs, customArgs),
 		}
 	})
@@ -128,9 +137,12 @@ func (cg *ClientGenerator) groupVersionPackage(gv schema.GroupVersion, generator
 
 	return Package(generatorArgs, packagePath, func(context *generator.Context) []generator.Generator {
 		generators := []generator.Generator{
+			// Generates pkg/generated/controllers/cluster.cattle.io/v3/interface.go
 			GroupVersionInterfaceGo(gv, generatorArgs, customArgs),
 		}
 
+		// Generates pkg/generated/controllers/cluster.cattle.io/v3/<type>.go
+		// which contains the Controller/Client/Cache interface (for generic code)
 		for _, t := range customArgs.TypesByGroup[gv] {
 			generators = append(generators, TypeGo(gv, t, generatorArgs, customArgs))
 			cg.Fakes[packagePath] = append(cg.Fakes[packagePath], t.Name)

@@ -47,9 +47,11 @@ func Run(opts cgargs.Options) {
 		}
 
 		genericArgs.OutputBase = tempDir
+		fmt.Println("HITHERE", genericArgs.OutputBase)
 		defer os.RemoveAll(tempDir)
 	}
 	customArgs.OutputBase = genericArgs.OutputBase
+	fmt.Println(customArgs.OutputBase)
 
 	clientGen := generators.NewClientGenerator()
 
@@ -60,6 +62,10 @@ func Run(opts cgargs.Options) {
 	); err != nil {
 		logrus.Fatalf("Error: %v", err)
 	}
+	if err := copyGoPathToModules(customArgs); err != nil {
+		logrus.Fatalf("go modules copy failed: %v", err)
+	}
+	os.Exit(0)
 
 	groups := map[string]bool{}
 	listerGroups := map[string]bool{}

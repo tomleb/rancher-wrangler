@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	controllergen "github.com/rancher/wrangler/v2/pkg/controller-gen"
 	"github.com/rancher/wrangler/v2/pkg/controller-gen/args"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -18,11 +20,20 @@ import (
 )
 
 func main() {
+	os.Unsetenv("GOPATH")
 	controllergen.Run(args.Options{
 		ImportPackage: "github.com/rancher/wrangler/v2/pkg/generated",
 		OutputPackage: "github.com/rancher/wrangler/pkg/generated",
 		Boilerplate:   "scripts/boilerplate.go.txt",
 		Groups: map[string]args.Group{
+			"cluster.cattle.io": {
+				PackageName: "cluster.cattle.io",
+				Types: []interface{}{
+					// All structs with an embedded ObjectMeta field will be picked up
+					"./pkg/apis/cluster.cattle.io/v3",
+				},
+				GenerateTypes: true,
+			},
 			v1.GroupName: {
 				Types: []interface{}{
 					v1.Event{},
