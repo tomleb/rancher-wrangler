@@ -36,11 +36,12 @@ import (
 )
 
 type Args struct {
-	GoHeaderFilePath  string
-	Options           args2.Options
-	TypesByGroup      map[schema.GroupVersion][]*types.Name
-	Package           string
-	ImportPackage     string
+	GoHeaderFilePath string
+	Options          args2.Options
+	TypesByGroup     map[schema.GroupVersion][]*types.Name
+	Package          string
+	ImportPackage    string
+	// TODO: Remove, not needed
 	InputDirs         []string
 	OutputBase        string
 	OutputPackagePath string
