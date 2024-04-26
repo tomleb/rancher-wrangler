@@ -23,6 +23,14 @@ func main() {
 		OutputPackage: "github.com/rancher/wrangler/pkg/generated",
 		Boilerplate:   "scripts/boilerplate.go.txt",
 		Groups: map[string]args.Group{
+			"provisioning.cattle.io": {
+				Types: []interface{}{
+					"./pkg/apis/provisioning.cattle.io/v1",
+				},
+				GenerateTypes:   true,
+				GenerateClients: true,
+			},
+
 			v1.GroupName: {
 				Types: []interface{}{
 					v1.Event{},
