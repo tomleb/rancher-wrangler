@@ -28,6 +28,10 @@ type EndpointsController interface {
 	generic.ControllerInterface[*v1.Endpoints, *v1.EndpointsList]
 }
 
+type EndpointsControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Endpoints, *v1.EndpointsList]
+}
+
 // EndpointsClient interface for managing Endpoints resources in Kubernetes.
 type EndpointsClient interface {
 	generic.ClientInterface[*v1.Endpoints, *v1.EndpointsList]

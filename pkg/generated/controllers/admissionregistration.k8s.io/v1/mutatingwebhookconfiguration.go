@@ -28,6 +28,10 @@ type MutatingWebhookConfigurationController interface {
 	generic.NonNamespacedControllerInterface[*v1.MutatingWebhookConfiguration, *v1.MutatingWebhookConfigurationList]
 }
 
+type MutatingWebhookConfigurationControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.MutatingWebhookConfiguration, *v1.MutatingWebhookConfigurationList]
+}
+
 // MutatingWebhookConfigurationClient interface for managing MutatingWebhookConfiguration resources in Kubernetes.
 type MutatingWebhookConfigurationClient interface {
 	generic.NonNamespacedClientInterface[*v1.MutatingWebhookConfiguration, *v1.MutatingWebhookConfigurationList]

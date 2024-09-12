@@ -39,6 +39,10 @@ type CustomResourceDefinitionController interface {
 	generic.NonNamespacedControllerInterface[*v1.CustomResourceDefinition, *v1.CustomResourceDefinitionList]
 }
 
+type CustomResourceDefinitionControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.CustomResourceDefinition, *v1.CustomResourceDefinitionList]
+}
+
 // CustomResourceDefinitionClient interface for managing CustomResourceDefinition resources in Kubernetes.
 type CustomResourceDefinitionClient interface {
 	generic.NonNamespacedClientInterface[*v1.CustomResourceDefinition, *v1.CustomResourceDefinitionList]

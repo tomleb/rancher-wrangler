@@ -39,6 +39,10 @@ type StatefulSetController interface {
 	generic.ControllerInterface[*v1.StatefulSet, *v1.StatefulSetList]
 }
 
+type StatefulSetControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.StatefulSet, *v1.StatefulSetList]
+}
+
 // StatefulSetClient interface for managing StatefulSet resources in Kubernetes.
 type StatefulSetClient interface {
 	generic.ClientInterface[*v1.StatefulSet, *v1.StatefulSetList]

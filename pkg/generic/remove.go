@@ -1,6 +1,8 @@
 package generic
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -13,20 +15,36 @@ type Updater func(runtime.Object) (runtime.Object, error)
 
 type objectLifecycleAdapter struct {
 	name    string
-	handler Handler
+	handler HandlerContext
 	updater Updater
 }
 
 func NewRemoveHandler(name string, updater Updater, handler Handler) Handler {
+	handlerCtx := func(_ context.Context, key string, obj runtime.Object) (runtime.Object, error) {
+		return handler(key, obj)
+	}
 	o := objectLifecycleAdapter{
 		name:    name,
-		handler: handler,
+		handler: handlerCtx,
 		updater: updater,
 	}
 	return o.sync
 }
 
+func NewRemoveHandlerContext(name string, updater Updater, handler HandlerContext) HandlerContext {
+	o := objectLifecycleAdapter{
+		name:    name,
+		handler: handler,
+		updater: updater,
+	}
+	return o.syncContext
+}
+
 func (o *objectLifecycleAdapter) sync(key string, obj runtime.Object) (runtime.Object, error) {
+	return o.syncContext(context.Background(), key, obj)
+}
+
+func (o *objectLifecycleAdapter) syncContext(ctx context.Context, key string, obj runtime.Object) (runtime.Object, error) {
 	if obj == nil {
 		return nil, nil
 	}
@@ -44,7 +62,7 @@ func (o *objectLifecycleAdapter) sync(key string, obj runtime.Object) (runtime.O
 		return obj, nil
 	}
 
-	newObj, err := o.handler(key, obj)
+	newObj, err := o.handler(ctx, key, obj)
 	if err != nil {
 		return newObj, err
 	}

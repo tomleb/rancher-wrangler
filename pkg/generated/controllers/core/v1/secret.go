@@ -28,6 +28,10 @@ type SecretController interface {
 	generic.ControllerInterface[*v1.Secret, *v1.SecretList]
 }
 
+type SecretControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Secret, *v1.SecretList]
+}
+
 // SecretClient interface for managing Secret resources in Kubernetes.
 type SecretClient interface {
 	generic.ClientInterface[*v1.Secret, *v1.SecretList]

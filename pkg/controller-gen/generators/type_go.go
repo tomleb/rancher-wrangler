@@ -84,6 +84,10 @@ type {{.type}}Controller interface {
     generic.{{ if not .namespaced}}NonNamespaced{{end}}ControllerInterface[*{{.version}}.{{.type}}, *{{.version}}.{{.type}}List]
 }
 
+type {{.type}}ControllerContext interface {
+    generic.{{ if not .namespaced}}NonNamespaced{{end}}ControllerInterfaceContext[*{{.version}}.{{.type}}, *{{.version}}.{{.type}}List]
+}
+
 // {{.type}}Client interface for managing {{.type}} resources in Kubernetes.
 type {{.type}}Client interface {
 	generic.{{ if not .namespaced}}NonNamespaced{{end}}ClientInterface[*{{.version}}.{{.type}}, *{{.version}}.{{.type}}List]

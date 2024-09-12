@@ -28,6 +28,10 @@ type RoleController interface {
 	generic.ControllerInterface[*v1.Role, *v1.RoleList]
 }
 
+type RoleControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Role, *v1.RoleList]
+}
+
 // RoleClient interface for managing Role resources in Kubernetes.
 type RoleClient interface {
 	generic.ClientInterface[*v1.Role, *v1.RoleList]

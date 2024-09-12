@@ -17,6 +17,7 @@ import (
 	cache "github.com/rancher/lasso/pkg/cache"
 	client "github.com/rancher/lasso/pkg/client"
 	controller "github.com/rancher/lasso/pkg/controller"
+	trace "go.opentelemetry.io/otel/trace"
 	gomock "go.uber.org/mock/gomock"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -193,6 +194,18 @@ func (mr *MockSharedControllerMockRecorder) EnqueueAfter(arg0, arg1, arg2 any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnqueueAfter", reflect.TypeOf((*MockSharedController)(nil).EnqueueAfter), arg0, arg1, arg2)
 }
 
+// EnqueueAfterWithTrace mocks base method.
+func (m *MockSharedController) EnqueueAfterWithTrace(arg0, arg1 string, arg2 time.Duration, arg3 *trace.SpanContext) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "EnqueueAfterWithTrace", arg0, arg1, arg2, arg3)
+}
+
+// EnqueueAfterWithTrace indicates an expected call of EnqueueAfterWithTrace.
+func (mr *MockSharedControllerMockRecorder) EnqueueAfterWithTrace(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnqueueAfterWithTrace", reflect.TypeOf((*MockSharedController)(nil).EnqueueAfterWithTrace), arg0, arg1, arg2, arg3)
+}
+
 // EnqueueKey mocks base method.
 func (m *MockSharedController) EnqueueKey(arg0 string) {
 	m.ctrl.T.Helper()
@@ -203,6 +216,30 @@ func (m *MockSharedController) EnqueueKey(arg0 string) {
 func (mr *MockSharedControllerMockRecorder) EnqueueKey(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnqueueKey", reflect.TypeOf((*MockSharedController)(nil).EnqueueKey), arg0)
+}
+
+// EnqueueKeyWithTrace mocks base method.
+func (m *MockSharedController) EnqueueKeyWithTrace(arg0 string, arg1 *trace.SpanContext) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "EnqueueKeyWithTrace", arg0, arg1)
+}
+
+// EnqueueKeyWithTrace indicates an expected call of EnqueueKeyWithTrace.
+func (mr *MockSharedControllerMockRecorder) EnqueueKeyWithTrace(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnqueueKeyWithTrace", reflect.TypeOf((*MockSharedController)(nil).EnqueueKeyWithTrace), arg0, arg1)
+}
+
+// EnqueueWithTrace mocks base method.
+func (m *MockSharedController) EnqueueWithTrace(arg0, arg1 string, arg2 *trace.SpanContext) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "EnqueueWithTrace", arg0, arg1, arg2)
+}
+
+// EnqueueWithTrace indicates an expected call of EnqueueWithTrace.
+func (mr *MockSharedControllerMockRecorder) EnqueueWithTrace(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnqueueWithTrace", reflect.TypeOf((*MockSharedController)(nil).EnqueueWithTrace), arg0, arg1, arg2)
 }
 
 // Informer mocks base method.

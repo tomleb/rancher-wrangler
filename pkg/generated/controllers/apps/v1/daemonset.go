@@ -39,6 +39,10 @@ type DaemonSetController interface {
 	generic.ControllerInterface[*v1.DaemonSet, *v1.DaemonSetList]
 }
 
+type DaemonSetControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.DaemonSet, *v1.DaemonSetList]
+}
+
 // DaemonSetClient interface for managing DaemonSet resources in Kubernetes.
 type DaemonSetClient interface {
 	generic.ClientInterface[*v1.DaemonSet, *v1.DaemonSetList]

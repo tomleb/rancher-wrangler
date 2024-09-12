@@ -28,6 +28,10 @@ type ServiceAccountController interface {
 	generic.ControllerInterface[*v1.ServiceAccount, *v1.ServiceAccountList]
 }
 
+type ServiceAccountControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.ServiceAccount, *v1.ServiceAccountList]
+}
+
 // ServiceAccountClient interface for managing ServiceAccount resources in Kubernetes.
 type ServiceAccountClient interface {
 	generic.ClientInterface[*v1.ServiceAccount, *v1.ServiceAccountList]

@@ -39,6 +39,10 @@ type NodeController interface {
 	generic.NonNamespacedControllerInterface[*v1.Node, *v1.NodeList]
 }
 
+type NodeControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.Node, *v1.NodeList]
+}
+
 // NodeClient interface for managing Node resources in Kubernetes.
 type NodeClient interface {
 	generic.NonNamespacedClientInterface[*v1.Node, *v1.NodeList]

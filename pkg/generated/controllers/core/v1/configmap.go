@@ -28,6 +28,10 @@ type ConfigMapController interface {
 	generic.ControllerInterface[*v1.ConfigMap, *v1.ConfigMapList]
 }
 
+type ConfigMapControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.ConfigMap, *v1.ConfigMapList]
+}
+
 // ConfigMapClient interface for managing ConfigMap resources in Kubernetes.
 type ConfigMapClient interface {
 	generic.ClientInterface[*v1.ConfigMap, *v1.ConfigMapList]

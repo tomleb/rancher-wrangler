@@ -39,6 +39,10 @@ type DeploymentController interface {
 	generic.ControllerInterface[*v1.Deployment, *v1.DeploymentList]
 }
 
+type DeploymentControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Deployment, *v1.DeploymentList]
+}
+
 // DeploymentClient interface for managing Deployment resources in Kubernetes.
 type DeploymentClient interface {
 	generic.ClientInterface[*v1.Deployment, *v1.DeploymentList]
