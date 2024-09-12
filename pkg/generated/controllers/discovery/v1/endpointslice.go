@@ -28,6 +28,10 @@ type EndpointSliceController interface {
 	generic.ControllerInterface[*v1.EndpointSlice, *v1.EndpointSliceList]
 }
 
+type EndpointSliceControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.EndpointSlice, *v1.EndpointSliceList]
+}
+
 // EndpointSliceClient interface for managing EndpointSlice resources in Kubernetes.
 type EndpointSliceClient interface {
 	generic.ClientInterface[*v1.EndpointSlice, *v1.EndpointSliceList]

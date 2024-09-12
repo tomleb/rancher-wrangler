@@ -28,6 +28,10 @@ type ValidatingWebhookConfigurationController interface {
 	generic.NonNamespacedControllerInterface[*v1.ValidatingWebhookConfiguration, *v1.ValidatingWebhookConfigurationList]
 }
 
+type ValidatingWebhookConfigurationControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.ValidatingWebhookConfiguration, *v1.ValidatingWebhookConfigurationList]
+}
+
 // ValidatingWebhookConfigurationClient interface for managing ValidatingWebhookConfiguration resources in Kubernetes.
 type ValidatingWebhookConfigurationClient interface {
 	generic.NonNamespacedClientInterface[*v1.ValidatingWebhookConfiguration, *v1.ValidatingWebhookConfigurationList]

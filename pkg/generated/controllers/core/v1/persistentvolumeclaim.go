@@ -39,6 +39,10 @@ type PersistentVolumeClaimController interface {
 	generic.ControllerInterface[*v1.PersistentVolumeClaim, *v1.PersistentVolumeClaimList]
 }
 
+type PersistentVolumeClaimControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.PersistentVolumeClaim, *v1.PersistentVolumeClaimList]
+}
+
 // PersistentVolumeClaimClient interface for managing PersistentVolumeClaim resources in Kubernetes.
 type PersistentVolumeClaimClient interface {
 	generic.ClientInterface[*v1.PersistentVolumeClaim, *v1.PersistentVolumeClaimList]

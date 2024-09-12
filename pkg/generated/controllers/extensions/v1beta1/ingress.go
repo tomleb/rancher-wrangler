@@ -39,6 +39,10 @@ type IngressController interface {
 	generic.ControllerInterface[*v1beta1.Ingress, *v1beta1.IngressList]
 }
 
+type IngressControllerContext interface {
+	generic.ControllerInterfaceContext[*v1beta1.Ingress, *v1beta1.IngressList]
+}
+
 // IngressClient interface for managing Ingress resources in Kubernetes.
 type IngressClient interface {
 	generic.ClientInterface[*v1beta1.Ingress, *v1beta1.IngressList]

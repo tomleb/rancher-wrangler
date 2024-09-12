@@ -28,6 +28,10 @@ type ClusterRoleController interface {
 	generic.NonNamespacedControllerInterface[*v1.ClusterRole, *v1.ClusterRoleList]
 }
 
+type ClusterRoleControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.ClusterRole, *v1.ClusterRoleList]
+}
+
 // ClusterRoleClient interface for managing ClusterRole resources in Kubernetes.
 type ClusterRoleClient interface {
 	generic.NonNamespacedClientInterface[*v1.ClusterRole, *v1.ClusterRoleList]

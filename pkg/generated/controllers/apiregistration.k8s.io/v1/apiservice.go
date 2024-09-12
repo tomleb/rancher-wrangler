@@ -39,6 +39,10 @@ type APIServiceController interface {
 	generic.NonNamespacedControllerInterface[*v1.APIService, *v1.APIServiceList]
 }
 
+type APIServiceControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.APIService, *v1.APIServiceList]
+}
+
 // APIServiceClient interface for managing APIService resources in Kubernetes.
 type APIServiceClient interface {
 	generic.NonNamespacedClientInterface[*v1.APIService, *v1.APIServiceList]

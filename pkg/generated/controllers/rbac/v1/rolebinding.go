@@ -28,6 +28,10 @@ type RoleBindingController interface {
 	generic.ControllerInterface[*v1.RoleBinding, *v1.RoleBindingList]
 }
 
+type RoleBindingControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.RoleBinding, *v1.RoleBindingList]
+}
+
 // RoleBindingClient interface for managing RoleBinding resources in Kubernetes.
 type RoleBindingClient interface {
 	generic.ClientInterface[*v1.RoleBinding, *v1.RoleBindingList]

@@ -3,6 +3,7 @@ package generic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -19,6 +20,8 @@ import (
 
 // ErrSkip notifies the caller to skip this error.
 var ErrSkip = controller.ErrIgnore
+
+var ErrNotControllerContext = errors.New("not controller context")
 
 // ControllerMeta holds meta information shared by all controllers.
 type ControllerMeta interface {
@@ -66,6 +69,13 @@ type ControllerInterface[T RuntimeMetaObject, TList runtime.Object] interface {
 	Cache() CacheInterface[T]
 }
 
+type ControllerInterfaceContext[T RuntimeMetaObject, TList runtime.Object] interface {
+	AddGenericHandlerContext(ctx context.Context, name string, handler HandlerContext) error
+	AddGenericRemoveHandlerContext(ctx context.Context, name string, handler HandlerContext) error
+	OnChangeContext(ctx context.Context, name string, sync ObjectHandlerContext[T]) error
+	OnRemoveContext(ctx context.Context, name string, sync ObjectHandlerContext[T]) error
+}
+
 // NonNamespacedControllerInterface interface for managing non namespaced K8s Objects.
 type NonNamespacedControllerInterface[T RuntimeMetaObject, TList runtime.Object] interface {
 	ControllerMeta
@@ -85,6 +95,13 @@ type NonNamespacedControllerInterface[T RuntimeMetaObject, TList runtime.Object]
 
 	// Cache returns a cache for the resource type T.
 	Cache() NonNamespacedCacheInterface[T]
+}
+
+type NonNamespacedControllerInterfaceContext[T RuntimeMetaObject, TList runtime.Object] interface {
+	AddGenericHandlerContext(ctx context.Context, name string, handler HandlerContext) error
+	AddGenericRemoveHandlerContext(ctx context.Context, name string, handler HandlerContext) error
+	OnChangeContext(ctx context.Context, name string, sync ObjectHandlerContext[T]) error
+	OnRemoveContext(ctx context.Context, name string, sync ObjectHandlerContext[T]) error
 }
 
 // ClientInterface is an interface to performs CRUD like operations on an Objects.
@@ -152,8 +169,12 @@ type NonNamespacedClientInterface[T RuntimeMetaObject, TList runtime.Object] int
 // ObjectHandler performs operations on the given runtime.Object and returns the new runtime.Object or an error
 type Handler func(key string, obj runtime.Object) (runtime.Object, error)
 
+type HandlerContext func(ctx context.Context, key string, obj runtime.Object) (runtime.Object, error)
+
 // ObjectHandler performs operations on the given object and returns the new object or an error
 type ObjectHandler[T runtime.Object] func(string, T) (T, error)
+
+type ObjectHandlerContext[T runtime.Object] func(context.Context, string, T) (T, error)
 
 // Indexer computes a set of indexed values for the provided object.
 type Indexer[T runtime.Object] func(obj T) ([]string, error)
@@ -167,6 +188,22 @@ func FromObjectHandlerToHandler[T RuntimeMetaObject](sync ObjectHandler[T]) Hand
 			retObj, err = sync(key, nilObj)
 		} else {
 			retObj, err = sync(key, obj.(T))
+		}
+		if retObj == nilObj {
+			return nil, err
+		}
+		return retObj, err
+	}
+}
+
+func FromObjectHandlerContextToHandlerContext[T RuntimeMetaObject](sync ObjectHandlerContext[T]) HandlerContext {
+	return func(ctx context.Context, key string, obj runtime.Object) (runtime.Object, error) {
+		var nilObj, retObj T
+		var err error
+		if obj == nil {
+			retObj, err = sync(ctx, key, nilObj)
+		} else {
+			retObj, err = sync(ctx, key, obj.(T))
 		}
 		if retObj == nilObj {
 			return nil, err
@@ -246,6 +283,27 @@ func (c *Controller[T, TList]) OnChange(ctx context.Context, name string, sync O
 // OnRemove runs the given object handler when the controller detects a resource was changed.
 func (c *Controller[T, TList]) OnRemove(ctx context.Context, name string, sync ObjectHandler[T]) {
 	c.AddGenericHandler(ctx, name, NewRemoveHandler(name, c.Updater(), FromObjectHandlerToHandler(sync)))
+}
+
+func (c *Controller[T, TList]) AddGenericHandlerContext(ctx context.Context, name string, handler HandlerContext) error {
+	ctrlCtx, ok := c.controller.(controller.SharedControllerContext)
+	if !ok {
+		return ErrNotControllerContext
+	}
+	ctrlCtx.RegisterHandlerContext(ctx, name, controller.SharedControllerHandlerContextFunc(handler))
+	return nil
+}
+
+func (c *Controller[T, TList]) AddGenericRemoveHandlerContext(ctx context.Context, name string, handler HandlerContext) error {
+	return c.AddGenericHandlerContext(ctx, name, NewRemoveHandlerContext(name, c.Updater(), handler))
+}
+
+func (c *Controller[T, TList]) OnChangeContext(ctx context.Context, name string, sync ObjectHandlerContext[T]) error {
+	return c.AddGenericHandlerContext(ctx, name, FromObjectHandlerContextToHandlerContext(sync))
+}
+
+func (c *Controller[T, TList]) OnRemoveContext(ctx context.Context, name string, sync ObjectHandlerContext[T]) error {
+	return c.AddGenericHandlerContext(ctx, name, NewRemoveHandlerContext(name, c.Updater(), FromObjectHandlerContextToHandlerContext(sync)))
 }
 
 // Enqueue adds the resource with the given name in the provided namespace to the worker queue of the controller.

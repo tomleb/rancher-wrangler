@@ -39,6 +39,10 @@ type ServiceController interface {
 	generic.ControllerInterface[*v1.Service, *v1.ServiceList]
 }
 
+type ServiceControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Service, *v1.ServiceList]
+}
+
 // ServiceClient interface for managing Service resources in Kubernetes.
 type ServiceClient interface {
 	generic.ClientInterface[*v1.Service, *v1.ServiceList]

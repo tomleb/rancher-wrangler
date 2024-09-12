@@ -39,6 +39,10 @@ type JobController interface {
 	generic.ControllerInterface[*v1.Job, *v1.JobList]
 }
 
+type JobControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Job, *v1.JobList]
+}
+
 // JobClient interface for managing Job resources in Kubernetes.
 type JobClient interface {
 	generic.ClientInterface[*v1.Job, *v1.JobList]

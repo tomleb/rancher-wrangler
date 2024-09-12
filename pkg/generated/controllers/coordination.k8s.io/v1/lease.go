@@ -28,6 +28,10 @@ type LeaseController interface {
 	generic.ControllerInterface[*v1.Lease, *v1.LeaseList]
 }
 
+type LeaseControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Lease, *v1.LeaseList]
+}
+
 // LeaseClient interface for managing Lease resources in Kubernetes.
 type LeaseClient interface {
 	generic.ClientInterface[*v1.Lease, *v1.LeaseList]

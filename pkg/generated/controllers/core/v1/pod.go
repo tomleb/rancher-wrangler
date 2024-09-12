@@ -39,6 +39,10 @@ type PodController interface {
 	generic.ControllerInterface[*v1.Pod, *v1.PodList]
 }
 
+type PodControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Pod, *v1.PodList]
+}
+
 // PodClient interface for managing Pod resources in Kubernetes.
 type PodClient interface {
 	generic.ClientInterface[*v1.Pod, *v1.PodList]

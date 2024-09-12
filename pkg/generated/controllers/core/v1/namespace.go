@@ -39,6 +39,10 @@ type NamespaceController interface {
 	generic.NonNamespacedControllerInterface[*v1.Namespace, *v1.NamespaceList]
 }
 
+type NamespaceControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.Namespace, *v1.NamespaceList]
+}
+
 // NamespaceClient interface for managing Namespace resources in Kubernetes.
 type NamespaceClient interface {
 	generic.NonNamespacedClientInterface[*v1.Namespace, *v1.NamespaceList]

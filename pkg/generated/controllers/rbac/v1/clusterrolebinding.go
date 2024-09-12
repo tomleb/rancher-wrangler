@@ -28,6 +28,10 @@ type ClusterRoleBindingController interface {
 	generic.NonNamespacedControllerInterface[*v1.ClusterRoleBinding, *v1.ClusterRoleBindingList]
 }
 
+type ClusterRoleBindingControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.ClusterRoleBinding, *v1.ClusterRoleBindingList]
+}
+
 // ClusterRoleBindingClient interface for managing ClusterRoleBinding resources in Kubernetes.
 type ClusterRoleBindingClient interface {
 	generic.NonNamespacedClientInterface[*v1.ClusterRoleBinding, *v1.ClusterRoleBindingList]

@@ -39,6 +39,10 @@ type PersistentVolumeController interface {
 	generic.NonNamespacedControllerInterface[*v1.PersistentVolume, *v1.PersistentVolumeList]
 }
 
+type PersistentVolumeControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.PersistentVolume, *v1.PersistentVolumeList]
+}
+
 // PersistentVolumeClient interface for managing PersistentVolume resources in Kubernetes.
 type PersistentVolumeClient interface {
 	generic.NonNamespacedClientInterface[*v1.PersistentVolume, *v1.PersistentVolumeList]

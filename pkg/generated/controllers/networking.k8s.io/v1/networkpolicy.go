@@ -28,6 +28,10 @@ type NetworkPolicyController interface {
 	generic.ControllerInterface[*v1.NetworkPolicy, *v1.NetworkPolicyList]
 }
 
+type NetworkPolicyControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.NetworkPolicy, *v1.NetworkPolicyList]
+}
+
 // NetworkPolicyClient interface for managing NetworkPolicy resources in Kubernetes.
 type NetworkPolicyClient interface {
 	generic.ClientInterface[*v1.NetworkPolicy, *v1.NetworkPolicyList]

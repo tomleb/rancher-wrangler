@@ -28,6 +28,10 @@ type StorageClassController interface {
 	generic.NonNamespacedControllerInterface[*v1.StorageClass, *v1.StorageClassList]
 }
 
+type StorageClassControllerContext interface {
+	generic.NonNamespacedControllerInterfaceContext[*v1.StorageClass, *v1.StorageClassList]
+}
+
 // StorageClassClient interface for managing StorageClass resources in Kubernetes.
 type StorageClassClient interface {
 	generic.NonNamespacedClientInterface[*v1.StorageClass, *v1.StorageClassList]

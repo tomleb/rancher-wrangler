@@ -28,6 +28,10 @@ type EventController interface {
 	generic.ControllerInterface[*v1.Event, *v1.EventList]
 }
 
+type EventControllerContext interface {
+	generic.ControllerInterfaceContext[*v1.Event, *v1.EventList]
+}
+
 // EventClient interface for managing Event resources in Kubernetes.
 type EventClient interface {
 	generic.ClientInterface[*v1.Event, *v1.EventList]
