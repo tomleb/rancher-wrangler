@@ -1,20 +1,51 @@
-name: Verify Kubernetes Version Bump
+name: Kubernetes Version Check
 
 on:
   pull_request_target:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
 
 jobs:
-  check-k8s-version:
+  k8s-version-ack:
+    # Run on PR events OR on /ack-k8s-minor comments on a PR
+    if: |
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/ack-k8s-minor'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      statuses: write
       pull-requests: write
+      issues: write
+      statuses: write
     steps:
+      - name: Get PR Info
+        id: pr_info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let pr;
+            if (context.eventName === 'pull_request_target') {
+              pr = context.payload.pull_request;
+            } else {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              });
+              pr = data;
+            }
+            return {
+              number: pr.number,
+              head_sha: pr.head.sha,
+              base_ref: pr.base.ref,
+              url: pr.html_url
+            };
+
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ fromJson(steps.pr_info.outputs.result).head_sha }}
           fetch-depth: 0
 
       - name: Check K8s Version Change
@@ -26,12 +57,11 @@ jobs:
             git show "$ref:go.mod" | grep "k8s.io/client-go" | awk '{print $2}'
           }
 
-          # Compare Base (target branch) vs Head (PR branch)
-          BASE_SHA="origin/${{ github.base_ref }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          BASE_REF="${{ fromJson(steps.pr_info.outputs.result).base_ref }}"
+          git fetch origin "$BASE_REF" --depth=1
 
-          # Fetch origin to ensure we have the base ref available for git show
-          git fetch origin ${{ github.base_ref }} --depth=1
+          BASE_SHA="origin/$BASE_REF"
+          HEAD_SHA="${{ fromJson(steps.pr_info.outputs.result).head_sha }}"
 
           OLD_VER=$(get_k8s_version "$BASE_SHA")
           NEW_VER=$(get_k8s_version "$HEAD_SHA")
@@ -39,7 +69,6 @@ jobs:
           echo "Old Version: $OLD_VER"
           echo "New Version: $NEW_VER"
 
-          # Parse Minor Versions (vX.Y.Z -> Y)
           OLD_V=${OLD_VER#v}
           NEW_V=${NEW_VER#v}
 
@@ -54,55 +83,112 @@ jobs:
             echo "Kubernetes minor version unchanged."
           fi
 
-      - name: Set Status Pending (If Changed)
-        if: steps.check.outputs.minor_changed == 'true'
+      - name: Verify Acknowledgement
+        id: verify_ack
         uses: actions/github-script@v7
         with:
           script: |
+            const prInfo = ${{ steps.pr_info.outputs.result }};
+            const minorChanged = "${{ steps.check.outputs.minor_changed }}" === "true";
             const { owner, repo } = context.repo;
-            const sha = context.payload.pull_request.head.sha;
             
-            await github.rest.repos.createCommitStatus({
-              owner,
-              repo,
-              sha,
-              state: 'pending',
-              context: 'k8s-version-ack',
-              description: 'Waiting for acknowledgement (/ack-k8s-minor)',
-              target_url: context.payload.pull_request.html_url
-            });
+            if (!minorChanged) {
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: prInfo.head_sha,
+                state: 'success',
+                context: 'k8s-version-ack',
+                description: 'No minor version bump detected',
+              });
+              return;
+            }
 
-            const issue_number = context.payload.pull_request.number;
             const comments = await github.rest.issues.listComments({
               owner,
               repo,
-              issue_number,
+              issue_number: prInfo.number,
             });
 
-            const botComment = comments.data.find(c => c.body.includes('⚠️ Kubernetes minor version bump detected'));
+            const authorizedRoles = ['admin', 'maintain', 'write'];
+            let acknowledged = false;
+            let ackUser = "";
 
-            if (!botComment) {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: "⚠️ **Kubernetes minor version bump detected!**\n\nThis update requires a corresponding minor version bump for this library.\n\n**To proceed:**\nA maintainer must comment `/ack-k8s-minor` on this PR to verify they have acknowledged this requirement."
-              });
+            for (const comment of comments.data) {
+              if (comment.body.trim().includes('/ack-k8s-minor')) {
+                try {
+                  const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner,
+                    repo,
+                    username: comment.user.login,
+                  });
+                  
+                  if (authorizedRoles.includes(permission.permission)) {
+                    acknowledged = true;
+                    ackUser = comment.user.login;
+                    break;
+                  }
+                } catch (e) {
+                  console.log(`Error checking permissions for ${comment.user.login}: ${e}`);
+                }
+              }
             }
 
-      - name: Set Status Success (If Unchanged)
-        if: steps.check.outputs.minor_changed == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const sha = context.payload.pull_request.head.sha;
-            
-            await github.rest.repos.createCommitStatus({
-              owner,
-              repo,
-              sha,
-              state: 'success',
-              context: 'k8s-version-ack',
-              description: 'No minor version bump detected',
-            });
+            if (acknowledged) {
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: prInfo.head_sha,
+                state: 'success',
+                context: 'k8s-version-ack',
+                description: `Acknowledged by @${ackUser}`,
+              });
+              
+              // If triggered by a comment, react to it
+              if (context.eventName === 'issue_comment' && context.payload.comment.body.includes('/ack-k8s-minor')) {
+                await github.rest.reactions.createForIssueComment({
+                  owner,
+                  repo,
+                  comment_id: context.payload.comment.id,
+                  content: 'rocket',
+                });
+              }
+            } else {
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: prInfo.head_sha,
+                state: 'pending',
+                context: 'k8s-version-ack',
+                description: 'Waiting for acknowledgement (/ack-k8s-minor)',
+                target_url: prInfo.url
+              });
+
+              const botComment = comments.data.find(c => c.body.includes('⚠️ **Kubernetes minor version bump detected!**'));
+              if (!botComment) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: prInfo.number,
+                  body: "⚠️ **Kubernetes minor version bump detected!**\n\nThis update requires a corresponding minor version bump for this library.\n\n**To proceed:**\nA maintainer must comment `/ack-k8s-minor` on this PR to verify they have acknowledged this requirement."
+                });
+              }
+              
+              // If unauthorized user tried to ack, let them know
+              if (context.eventName === 'issue_comment' && context.payload.comment.body.includes('/ack-k8s-minor')) {
+                await github.rest.reactions.createForIssueComment({
+                  owner,
+                  repo,
+                  comment_id: context.payload.comment.id,
+                  content: '-1',
+                });
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: prInfo.number,
+                  body: `@${context.payload.comment.user.login} You are not authorized to acknowledge this change. Only maintainers with write access can proceed.`
+                });
+              }
+
+              core.setFailed("Kubernetes minor version bump detected but not acknowledged by a maintainer.");
+            }
