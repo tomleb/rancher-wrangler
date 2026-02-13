@@ -1,5 +1,13 @@
 name: Kubernetes Version Check
 
+# Note on Status Checks:
+# This workflow manages a custom status check named "k8s-version-ack".
+# In GitHub Branch Protection settings, you should specifically require "k8s-version-ack".
+#
+# DO NOT require the job named "Kubernetes Version Check / check-k8s-version", as 
+# it is designed to always pass (green) even when an acknowledgement is missing, 
+# allowing the "k8s-version-ack" status to remain as the definitive source of truth.
+
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
@@ -7,7 +15,7 @@ on:
     types: [created]
 
 jobs:
-  k8s-version-ack:
+  check-k8s-version:
     # Run on PR events OR on /ack-k8s-minor comments on a PR
     if: |
       github.event_name == 'pull_request_target' ||
@@ -158,7 +166,7 @@ jobs:
                 owner,
                 repo,
                 sha: prInfo.head_sha,
-                state: 'pending',
+                state: 'failure',
                 context: 'k8s-version-ack',
                 description: 'Waiting for acknowledgement (/ack-k8s-minor)',
                 target_url: prInfo.url
@@ -189,6 +197,4 @@ jobs:
                   body: `@${context.payload.comment.user.login} You are not authorized to acknowledge this change. Only maintainers with write access can proceed.`
                 });
               }
-
-              core.setFailed("Kubernetes minor version bump detected but not acknowledged by a maintainer.");
             }
